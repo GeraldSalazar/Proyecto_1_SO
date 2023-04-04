@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[]) {
 
-    // Valores compartidos
+    // Valores ingresados
     char *ID;
     int clave;
     int numeroEspacio;
@@ -54,6 +54,7 @@ int main(int argc, char *argv[]) {
 
     // Crear una clave única para la memoria compartida
     key_t key = ftok("Data/shmID", *ID);
+    
     int tamaño = sizeof(struct datosCompartida);
 
     // Crear la memoria compartida

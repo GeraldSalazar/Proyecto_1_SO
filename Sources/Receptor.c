@@ -15,9 +15,9 @@ int main(int argc, char *argv[]){
     char *Modo;
     int clave;
 
-    // Verificar que se hayan ingresado los 3 argumentos
-    if (argc != 3) {
-        printf("Uso: programa <string1> <numero1> <numero2>\n");
+    // Verificar que se hayan ingresado los 2 argumentos
+    if (argc != 2) {
+        printf("Uso: programa <string1> <numero1>\n");
         return 1;
     }
 
@@ -32,13 +32,15 @@ int main(int argc, char *argv[]){
 
     // Inicializamos esta memoria compartida
     struct datosCompartida *datos;
+    
     char *ID="buffer1";
+
     // Crear una clave única para la memoria compartida
     key_t key = ftok("Data/shmID", *ID);
 
     int tamaño = sizeof(struct datosCompartida);
     
-    // Crear la memoria compartida
+    // Copiamos la memoria compartida
     int shmid = shmget(key, tamaño, 0666 | IPC_CREAT);
     if (shmid == -1) {
         perror("shmget");
@@ -51,11 +53,12 @@ int main(int argc, char *argv[]){
         perror("shmat");
         exit(1);
     }
-    datos->contReceptoresVivos++;
 
-    /////////////////// Zona critica ////////////////////
+    datos->contReceptoresVivos++;
     sem_post(sem_vacios);
     sem_wait(sem_llenos);
+    
+    /////////////////// Zona critica ////////////////////
 
     printf("\n");
     printf("%d",datos->contReceptoresVivos);

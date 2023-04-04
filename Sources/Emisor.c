@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
 
     int tamaño = sizeof(struct datosCompartida);
     
-    // Crear la memoria compartida
+    // Copiamos la memoria compartida
     int shmid = shmget(key, tamaño, 0666 | IPC_CREAT);
     if (shmid == -1) {
         perror("shmget");

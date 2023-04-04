@@ -11,4 +11,5 @@ compile:
 
 xd:
 	./Bin/Receptor "Auto" 21	
-	./Bin/Emisor "Auto" 21	
+	./Bin/Emisor "Auto" 21
+	./Bin/Finalizador

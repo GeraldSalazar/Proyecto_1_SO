@@ -42,6 +42,7 @@ int main(){
     int tempEmisores=datos->contEmisoresVivos;
     int tempReceptores=datos->contReceptoresVivos;
     
+    // Cerramos los procesos en espera
     for (int i=0;i < datos->contEmisoresVivos; i++){
         datos->indiceEmisor=1;
         datos->indiceReceptor=1;
