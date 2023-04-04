@@ -1,0 +1,14 @@
+run:
+	./Bin/Inicializador "buffer1" 21 5
+	./Bin/Emisor "Auto" 21	
+	./Bin/Receptor "Auto" 21	
+	
+compile:
+	gcc Sources/Inicializador.c -o Bin/Inicializador -lrt -lpthread
+	gcc Sources/Emisor.c -o Bin/Emisor -lrt -lpthread
+	gcc Sources/Receptor.c -o Bin/Receptor -lrt -lpthread
+	gcc Sources/Finalizador.c -o Bin/Finalizador -lrt -lpthread
+
+xd:
+	./Bin/Receptor "Auto" 21	
+	./Bin/Emisor "Auto" 21	
