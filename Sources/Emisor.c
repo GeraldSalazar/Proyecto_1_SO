@@ -13,32 +13,27 @@
 int main(int argc, char *argv[]){
         // Valores compartidos
     char *Modo;
+    char *ID;
     int clave;
-
-    // Verificar que se hayan ingresado los 3 argumentos
-    if (argc != 3) {
-        printf("Uso: programa <string1> <numero1> <numero2>\n");
-        return 1;
-    }
 
     // Obtener los argumentos y convertir el número a entero
     Modo = argv[1];
-    clave = atoi(argv[2]);
+    ID = argv[2];
+    clave = atoi(argv[3]);
 
     /* Inicializar semáforos */
     sem_t *sem_llenos, *sem_vacios;
-    sem_llenos = sem_open("sem_llenos",0);
-    sem_vacios = sem_open("sem_vacios",0);
+    sem_llenos = sem_open("/sem_llenos",0);
+    sem_vacios = sem_open("/sem_vacios",0);
 
     // Inicializamos esta memoria compartida
     struct datosCompartida *datos;
 
-    char *ID="buffer1";
-
     // Crear una clave única para la memoria compartida
-    key_t key = ftok("Data/shmID", *ID);
+    key_t key = ftok("Data/shmid.txt", *ID);
+    printf("key: %-20d\n", key);
 
-    int tamaño = sizeof(struct datosCompartida);
+    size_t tamaño = sizeof(struct datosCompartida);
     
     // Copiamos la memoria compartida
     int shmid = shmget(key, tamaño, 0666 | IPC_CREAT);
@@ -53,24 +48,31 @@ int main(int argc, char *argv[]){
         perror("shmat");
         exit(1);
     }
+    //Memoria circular
+    if (datos->numeroEspacio==datos->indiceEmisor){
+        datos->indiceEmisor=0;
+    }
     
     datos->contEmisoresVivos++;
-    sem_wait(sem_vacios);
     sem_post(sem_llenos);
+    //Mutex
 
     /////////////////// Zona critica ////////////////////
 
-    //datos->buffer[1] = 1;
+    datos->buffer[0] = 1;
     datos->indiceEmisor++;
     datos->contEmisoresVivos--;
     datos->contEmisoresTotal++;
 
-
+    //printf("%-20d",datos->contEmisoresTotal);
+    printf("%-20d",datos->buffer[1]);
+    printf("\n");
 
     time_t tiempo_actual = time(NULL);                    // Obtenemos el tiempo actual en segundos
     struct tm *tiempo_local = localtime(&tiempo_actual);  // Convertimos el tiempo en una estructura tm
     printf("Fecha actual: %d/%d/%d\n", tiempo_local->tm_year + 1900, tiempo_local->tm_mon + 1, tiempo_local->tm_mday);
     printf("Hora actual: %d:%02d:%02d\n", tiempo_local->tm_hour, tiempo_local->tm_min, tiempo_local->tm_sec);
-
+    
+    sem_wait(sem_vacios);
     return 0;
 }

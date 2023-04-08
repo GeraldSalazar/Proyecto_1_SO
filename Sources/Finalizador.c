@@ -49,6 +49,7 @@ int main(){
         //Leemos algo
         sem_post(sem_vacios);
         sem_wait(sem_llenos);
+        //Mutex
     }
     for (int i=0;i < datos->contReceptoresVivos; i++){
         datos->indiceEmisor=1;
@@ -56,6 +57,7 @@ int main(){
         //Escribimos algo
         sem_post(sem_vacios);
         sem_wait(sem_llenos);
+        //Mutex
     }
 
 

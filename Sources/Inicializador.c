@@ -51,27 +51,28 @@ int main(int argc, char *argv[]) {
 
     // Inicializamos esta memoria compartida
     struct datosCompartida *datos;
-
-    // Crear una clave única para la memoria compartida
-    key_t key = ftok("Data/shmID", *ID);
     
-    int tamaño = sizeof(struct datosCompartida);
+    // Crear una clave única para la memoria compartida
+    key_t key = ftok("Data/shmid.txt", *ID);
+    printf("key: %-20d\n", key);
+
+    size_t tamaño = sizeof(struct datosCompartida);
 
     // Crear la memoria compartida
     int shmid = shmget(key, tamaño, 0666 | IPC_CREAT);
     if (shmid == -1) {
         perror("shmget");
         exit(1);
-    }
-    
+    }   
     // Asignar la estructura a la memoria compartida
     datos = shmat(shmid, NULL, 0);
     if (datos == (void *) -1) {
         perror("shmat");
         exit(1);
     }
+
     // Asignar valores a la estructura
-    datos->buffer = malloc(numeroEspacio * sizeof(int));
+    //datos->buffer = malloc(numeroEspacio * sizeof(int));
     datos->clave = clave;
     datos->numeroEspacio = numeroEspacio;
     datos->contEmisoresTotal=0;
@@ -80,13 +81,21 @@ int main(int argc, char *argv[]) {
     datos->contReceptoresVivos=0;
     datos->indiceEmisor=0;
     datos->indiceReceptor=0;
-    datos->indiceTxtEmisor=5;
+    datos->indiceTxtEmisor=0;
     datos->indiceTxtReceptor=0;
 
     printf("\n");
     printf("ID: %-20s\n", ID);
     printf("Clave:%-20d\n",datos->clave);
     printf("Numero de espacio:%-20d\n",datos->numeroEspacio );
+    
+    datos->buffer[0]=0;
+    datos->buffer[1]=1;
+    datos->buffer[2]=2;
+    datos->buffer[3]=3;
+    datos->buffer[4]=5;
+
+    printf("%-20d",datos->buffer[4]);
     printf("\n");
 
     return 0;
