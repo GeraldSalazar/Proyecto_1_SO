@@ -7,9 +7,9 @@
 #include <errno.h>
 #include <semaphore.h>
 #include <fcntl.h>            // Necesario para O_CREAT y O_EXCL
-#include "datosCompartidos.h" // Estructura
 #include <time.h>
-
+#include "datosCompartidos.h" // Estructura
+#include "Constantes.h"
 int main(int argc, char *argv[]){
         // Valores compartidos
     char *Modo;
@@ -30,7 +30,7 @@ int main(int argc, char *argv[]){
     struct datosCompartida *datos;
 
     // Crear una clave única para la memoria compartida
-    key_t key = ftok("Data/shmid.txt", *ID);
+    key_t key = ftok(KEY_PATH, *ID);
     printf("key: %-20d\n", key);
 
     size_t tamaño = sizeof(struct datosCompartida);
