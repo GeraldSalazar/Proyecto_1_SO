@@ -8,10 +8,12 @@
 #include <semaphore.h>
 #include <fcntl.h> // Necesario para O_CREAT y O_EXCL
 #include <time.h>
+#include <unistd.h>
 #include "datosCompartidos.h" // Estructura
 #include "Constantes.h"
 
 void setupEmisor(char *Modo, char *ID, int clave);
+void printDatos(struct datosCompartida *d);
 
 int main(int argc, char *argv[])
 {
@@ -41,9 +43,6 @@ int main(int argc, char *argv[])
 
 void setupEmisor(char *Modo, char *ID, int clave)
 {
-    printf("Modo: %s\n", Modo);
-    printf("ID: %s\n", ID);
-    printf("Clave: %d\n", clave);
     /* Inicializar semáforos */
     sem_t *sem_llenos, *sem_vacios;
     sem_llenos = sem_open("/sem_llenos", 0);
@@ -54,18 +53,18 @@ void setupEmisor(char *Modo, char *ID, int clave)
 
     // Crear una clave única para la memoria compartida
     key_t key = ftok(KEY_PATH, *ID);
-    printf("key: %-20d\n", key);
+    printf("key: %d\n", key);
 
-    size_t tamano = sizeof(struct datosCompartida);
-    printf("tamaño mem compartida: %zu bytes\n", tamano);
+    size_t strucTamano = sizeof(struct datosCompartida);
     // Copiamos la memoria compartida
-    int shmid = shmget(key, tamano, 0666);
+    int shmid = shmget(key, strucTamano, 0666);
     if (shmid == -1)
     {
         perror("Error al obtener el ID de la mem compartida");
         exit(1);
     }
     printf("ID mem compartida: %d\n", shmid);
+
     // Asignar la estructura a la memoria compartida
     datos = (struct datosCompartida *)shmat(shmid, NULL, 0);
     if (datos == (void *)-1)
@@ -75,70 +74,105 @@ void setupEmisor(char *Modo, char *ID, int clave)
     }
     printf("Dirección mem compartida: %p\n", datos);
 
-    printf("Dirección del buffer: %p \n", datos->buffer);
+    //---Debug
+    struct shmid_ds segment_info;
+    shmctl(shmid, IPC_STAT, &segment_info);
+    printf("Current size of shared memory segment: %ld\n", segment_info.shm_segsz);
+    printf("No. of current attaches: %ld\n", segment_info.shm_nattch);
+    printf("Owner: %d. My PID: %d \n", segment_info.shm_cpid, getpid());
+    //--------
 
-    printf("Dirección de dataTxt: %p \n", datos->dataTxt);
-
-    //sem_wait(sem_vacios);
-    // Leer del txt y Escribir caracter en el buffer test
-    datos->buffer = (char*)malloc((datos->numeroEspacio) * sizeof(char));
-    printf("tamaño buffer: %zu bytes\n", (datos->numeroEspacio) * sizeof(char));
-    
-    char str[6];
-    strncpy(str, (char*)datos->buffer, sizeof(str) - 1);
-    printf("size of: %ld\n", sizeof(str));
-    int i;
-    for (i = 0; str[i] != '\0'; i++);
-    if (i == sizeof(str) - 1) {
-        printf("str1 is null-terminated\n");
-    } else {
-        printf("str1 is not null-terminated\n");
+    // Direccion del archivo que contiene los caracteres a cargar
+    // "r+": read/write y el archivo debe existir
+    FILE* dataTxt;
+    dataTxt = fopen("Data/charData.txt", "r+");
+    if (dataTxt == NULL) {
+        perror("Error al abrir el txt con los caracteres");
+        exit(1);
     }
-    printf("char 1: %c\n", str[0]);
-    printf("char 2: %c\n", str[1]);
-    // copy to buffer
-    strncpy(datos->buffer, "hello", (datos->numeroEspacio)-1);
-    // read from buffer
-    char str2[6];
-    memcpy(str2, datos->buffer, 5*sizeof(char));
-    printf("char after: %s\n", str2);
+    printf("Puntero del txt con los datos: %p\n", dataTxt);
 
-    free(datos->buffer);
-    exit(1);
+    // Direccion del archivo que contiene informacion de las operaciones
+    //"a+": Si el archivo no existe, lo construye
+    FILE* logFile;
+    logFile = fopen("Data/log.txt", "a");
+    if (logFile == NULL) {
+        perror("Error al abrir el log .txt");
+        exit(1);
+    }
+    printf("Puntero del log txt: %p\n", logFile);
 
-    sem_post(sem_llenos);
-    // strcpy(datos->buffer, "abcd");
-    // printf("Cantidad a leer: %ld \n", strlen(datos->buffer));
-    exit(1);
-    // size_t num_read = fread(datos->buffer, sizeof(char), sizeof(datos->buffer), datos->dataTxt);
-    // datos->buffer[datos->indiceEmisor] = 'e';
-    // printf("Buffer: %s \n", datos->buffer);
 
-    // Memoria circular
-    if (datos->numeroEspacio == datos->indiceEmisor)
+    //////// REGION CRITICA ////////
+    sem_wait(sem_vacios);
+    //mutex here
+
+    // leer un unico caracter del archivo txt de los datos
+    fseek(dataTxt, datos->indiceTxtEmisor, SEEK_SET);   //mover el cursor del file a donde lo dejo el emisor anterior
+    char charLeido;
+    size_t num_read = fread(&charLeido, sizeof(char), 1, dataTxt);  // 1 significa que un solo caracter se va a leer
+    if(num_read =! 1){
+        perror("Error al leer un caracter del txt");
+        fclose(dataTxt);
+        exit(1);
+    }
+    printf("Char read from file: %c \n", charLeido);
+    datos->indiceTxtEmisor++;
+
+    // copiar el caracter leido al sitio respectivo del buffer
+    datos->buffer[datos->indiceEmisor] = charLeido;
+    printf("Buffer : %s \n", datos->buffer);
+    printf("Indice emisor : %d \n", datos->indiceEmisor);
+    
+    
+    // escribir la info en el log file, se escribe una linea al final del archivo
+    char infoFormato[] = "%d-%c    | %c           |  %d       |  %s \n";
+    fprintf(logFile, infoFormato, getpid(),'E', charLeido, datos->indiceEmisor, "dd:mm:ss");
+    
+    //Buffer con R/W circular
+    datos->indiceEmisor++;
+    if (datos->indiceEmisor >= datos->numeroEspacio)
     {
         datos->indiceEmisor = 0;
     }
 
-    datos->contEmisoresVivos++;
+    //printDatos(datos);
+    //unlock mutex
     sem_post(sem_llenos);
-    // Mutex
 
-    /////////////////// Zona critica ////////////////////
+    if (shmdt(datos) == -1) {  // desasignar del segmento compartido
+        perror("Error eliminando asignacion del seg compartido");
+        exit(1);
+    }
+    fclose(logFile);
+    fclose(dataTxt);
 
-    datos->buffer[0] = 1;
-    datos->indiceEmisor++;
-    datos->contEmisoresVivos--;
-    datos->contEmisoresTotal++;
+    exit(1);
 
-    // printf("%-20d",datos->contEmisoresTotal);
-    printf("%-20d", datos->buffer[1]);
-    printf("\n");
+    //strncpy(datos->buffer, "hello", (datos->numeroEspacio)-1);
+    //memcpy(str2, datos->buffer, 5*sizeof(char));
 
-    time_t tiempo_actual = time(NULL);                   // Obtenemos el tiempo actual en segundos
-    struct tm *tiempo_local = localtime(&tiempo_actual); // Convertimos el tiempo en una estructura tm
-    printf("Fecha actual: %d/%d/%d\n", tiempo_local->tm_year + 1900, tiempo_local->tm_mon + 1, tiempo_local->tm_mday);
-    printf("Hora actual: %d:%02d:%02d\n", tiempo_local->tm_hour, tiempo_local->tm_min, tiempo_local->tm_sec);
+    /////////////////////////////////
 
-    sem_wait(sem_vacios);
+
 }
+void printDatos(struct datosCompartida *d)
+{
+    printf("--- Printing shared memory... --- \n");
+    printf("Clave: %d\n", d->clave);
+    printf("Espacios del buffer: %d\n", d->numeroEspacio);
+    printf("indiceEmisor: %d\n", d->indiceEmisor);
+    printf("indiceReceptor: %d\n", d->indiceReceptor);
+    printf("indiceTxtEmisor: %d\n", d->indiceTxtEmisor);
+    printf("indiceTxtReceptor: %d\n", d->indiceTxtReceptor);
+    printf("Buffer: %s\n", d->buffer);
+    printf("Dirección del buffer: %p \n", d->buffer);
+    printf("Length buffer: %ld \n", strlen(d->buffer));
+    return;
+}
+
+
+    // time_t tiempo_actual = time(NULL);                   // Obtenemos el tiempo actual en segundos
+    // struct tm *tiempo_local = localtime(&tiempo_actual); // Convertimos el tiempo en una estructura tm
+    // printf("Fecha actual: %d/%d/%d\n", tiempo_local->tm_year + 1900, tiempo_local->tm_mon + 1, tiempo_local->tm_mday);
+    // printf("Hora actual: %d:%02d:%02d\n", tiempo_local->tm_hour, tiempo_local->tm_min, tiempo_local->tm_sec);

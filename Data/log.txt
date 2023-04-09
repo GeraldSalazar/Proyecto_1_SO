@@ -1,0 +1,3 @@
+PID-E/R    | Caracter    | Index    | Date    
+23345E     | H           |  0      |  dd:mm:ss 
+23347E     | o           |  1      |  dd:mm:ss 

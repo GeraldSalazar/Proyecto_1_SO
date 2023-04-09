@@ -71,16 +71,20 @@ int main(int argc, char *argv[])
     key_t key = ftok(KEY_PATH, *ID);
     printf("key: %-20d\n", key);
 
-    size_t tamano = sizeof(struct datosCompartida);
-    printf("tamaño mem compartida: %zu bytes\n", tamano);
+    // size de la estructura de datos
+    size_t strucTamano = sizeof(struct datosCompartida);
+    // size del buffer
+    size_t bufferTamano = numeroEspacio * sizeof(char);
+    printf("tamaño mem compartida: %zu bytes\n", strucTamano + bufferTamano);
     // Crear la memoria compartida
-    int shmid = shmget(key, tamano, 0666 | IPC_CREAT);
+    int shmid = shmget(key, strucTamano + bufferTamano, 0666 | IPC_CREAT);
     if (shmid == -1)
     {
         perror("Error creando la memoria compartida");
         exit(1);
     }
     printf("ID mem compartida: %d\n", shmid);
+
     // Asignar la estructura a la memoria compartida. datos tiene la dirección de la memoria compartida
     // shmaddr = NULL -> El SO decide la dirección donde estará el segmento de mem compartida
     datos = (struct datosCompartida *)shmat(shmid, NULL, 0);
@@ -91,59 +95,70 @@ int main(int argc, char *argv[])
     }
     printf("Dirección mem compartida: %p\n", datos);
 
-    // Direccion del archivo que contiene los caracteres a cargar
-    //"r+": read/write y el archivo debe existir
-    // datos->dataTxt = fopen("Data/charData.txt", "r+");
-    // if (datos->dataTxt == NULL) {
-    //     perror("Error al abrir el txt con los caracteres");
-    //     exit(1);
-    // }
-    // printf("Puntero del txt con los datos: %p\n", datos->dataTxt);
+     //--- debug
+    struct shmid_ds segment_info;
+    shmctl(shmid, IPC_STAT, &segment_info);
+    printf("Current size of shared memory segment: %ld\n", segment_info.shm_segsz);
+    printf("No. of current attaches: %ld\n", segment_info.shm_nattch);
+    printf("Owner: %d. My PID: %d\n", segment_info.shm_cpid, getpid());
+    /// -----
 
-    // // Direccion del archivo que contiene informacion de las operaciones
-    // //"a+": Si el archivo no existe, lo construye
-    // datos->logFile = fopen("Data/log.txt", "a");
-    // if (datos->logFile == NULL) {
-    //     perror("Error al abrir el log .txt");
-    //     exit(1);
-    // }
-    // printf("Puntero del log txt: %p\n", datos->logFile);
+    FILE* logFile;
+    // clear the content of the file
+    logFile = fopen("Data/log.txt", "w");
+    fclose(logFile);
+    // write headers to log file
+    logFile = fopen("Data/log.txt", "a");
+    if (logFile == NULL) {
+        perror("Error al abrir el log .txt");
+        exit(1);
+    }
+    char infoFormato[] = "%s    | %s    | %s    | %s    \n";
+    fprintf(logFile, infoFormato, "PID-E/R", "Caracter", "Index", "Date");
+    fclose(logFile);
+
 
     // Asignar valores a la estructura
     datos->clave = clave;
     datos->numeroEspacio = numeroEspacio;
-    datos->indiceEmisor = 0;
+    datos->indiceEmisor = 0;            
     datos->indiceReceptor = 0;
-    // malloc retorna un puntero al primer byte del bloque de mem
-    datos->buffer = (char *)malloc((numeroEspacio) * sizeof(char));
-    printf("Se asignaron %ld bytes para el buffer de caracteres.\n", (numeroEspacio) * sizeof(char));
-    strncpy(datos->buffer, "sipi", numeroEspacio - 1);
-    datos->buffer[numeroEspacio-1] = '\0';
-    printf("buffer: %s\n", datos->buffer);
-    printf("Dirección del buffer: %p \n", datos->buffer);
-    printf("len buffer: %ld \n", strlen(datos->buffer));
+    datos->indiceTxtEmisor = 0;
+    datos->indiceTxtReceptor = 0;
 
+    //write to buffer test
+    datos->buffer[0] = 't';
+    datos->buffer[1] = 'o';
+    datos->buffer[2] = 'j';
+    datos->buffer[3] = 't';
+    datos->buffer[4] = 'k';
+
+
+    printf("Buffer snapshot: %s\n", datos->buffer);
+    sleep(30);
     printDatos(datos);
-    //free(datos->buffer);
-    shmdt(datos);
-    // sleep(25);
-
-    // if (shmdt(datos) == -1) {  // desasignar del segmento compartido
-    //     perror("Error eliminando asignacion del seg compartido");
-    //     return 1;
-    // }
-    // fclose(dataTxt);
+    if (shmdt(datos) == -1) {  // desasignar del segmento compartido
+        perror("Error eliminando asignacion del seg compartido");
+        return 1;
+    }
+    if (shmctl(shmid, IPC_RMID, NULL) < 0) {    //remover bloque shm
+        perror("Error removiendo el bloque de mem compartida");
+        exit(1);
+    }
     return 0;
 }
 
 void printDatos(struct datosCompartida *d)
 {
+    printf("--- Printing shared memory... --- \n");
     printf("Clave: %d\n", d->clave);
     printf("Espacios del buffer: %d\n", d->numeroEspacio);
     printf("indiceEmisor: %d\n", d->indiceEmisor);
     printf("indiceReceptor: %d\n", d->indiceReceptor);
-    // printf("contEmisoresVivos: %d\n", d->contEmisoresVivos);
-    // printf("contReceptoresVivos: %d\n", d->contReceptoresVivos);
-    printf("buffer: %s\n", d->buffer);
+    printf("indiceTxtEmisor: %d\n", d->indiceTxtEmisor);
+    printf("indiceTxtReceptor: %d\n", d->indiceTxtReceptor);
+    printf("Buffer: %s\n", d->buffer);
+    printf("Dirección del buffer: %p \n", d->buffer);
+    printf("Length buffer: %ld \n", strlen(d->buffer));
     return;
 }
