@@ -12,10 +12,9 @@ struct datosCompartida {
     int contEmisoresVivos, contReceptoresVivos;
     int contEmisoresTotal, contReceptoresTotal;
     char clave;
-    char buffer[25];
-    //char buffer[256];
-    //FILE * fileTxt;
-    //char fileTxtReceptor;
+    char* buffer;
+    FILE* dataTxt;
+    FILE* logFile;
 };
 
 #endif /* datosCompartidos */

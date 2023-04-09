@@ -8,10 +8,11 @@
 #include <semaphore.h>
 #include <fcntl.h> // Necesario para O_CREAT y O_EXCL
 #include <time.h>
+#include <unistd.h>
 #include "datosCompartidos.h" // Estructura
 #include "Constantes.h"
 
-void printDatos(struct datosCompartida* d);
+void printDatos(struct datosCompartida *d);
 
 int main(int argc, char *argv[])
 {
@@ -72,7 +73,6 @@ int main(int argc, char *argv[])
 
     size_t tamano = sizeof(struct datosCompartida);
     printf("tamaño mem compartida: %zu bytes\n", tamano);
-
     // Crear la memoria compartida
     int shmid = shmget(key, tamano, 0666 | IPC_CREAT);
     if (shmid == -1)
@@ -83,49 +83,67 @@ int main(int argc, char *argv[])
     printf("ID mem compartida: %d\n", shmid);
     // Asignar la estructura a la memoria compartida. datos tiene la dirección de la memoria compartida
     // shmaddr = NULL -> El SO decide la dirección donde estará el segmento de mem compartida
-    datos = shmat(shmid, NULL, 0);
-    if (datos == (void *)-1)          //(void *) -1 es un puntero a la dirección de memoria 0xFFFFFFFF
+    datos = (struct datosCompartida *)shmat(shmid, NULL, 0);
+    if (datos == (void *)-1) //(void *) -1 es un puntero a la dirección de memoria 0xFFFFFFFF
     {
         perror("Error asignando la memoria compartida");
         exit(1);
     }
     printf("Dirección mem compartida: %p\n", datos);
-    
+
+    // Direccion del archivo que contiene los caracteres a cargar
+    //"r+": read/write y el archivo debe existir
+    // datos->dataTxt = fopen("Data/charData.txt", "r+");
+    // if (datos->dataTxt == NULL) {
+    //     perror("Error al abrir el txt con los caracteres");
+    //     exit(1);
+    // }
+    // printf("Puntero del txt con los datos: %p\n", datos->dataTxt);
+
+    // // Direccion del archivo que contiene informacion de las operaciones
+    // //"a+": Si el archivo no existe, lo construye
+    // datos->logFile = fopen("Data/log.txt", "a");
+    // if (datos->logFile == NULL) {
+    //     perror("Error al abrir el log .txt");
+    //     exit(1);
+    // }
+    // printf("Puntero del log txt: %p\n", datos->logFile);
+
     // Asignar valores a la estructura
     datos->clave = clave;
     datos->numeroEspacio = numeroEspacio;
-    datos->contEmisoresTotal = 0;
-    datos->contReceptoresTotal = 0;
-    datos->contEmisoresVivos = 0;
-    datos->contReceptoresVivos = 0;
     datos->indiceEmisor = 0;
     datos->indiceReceptor = 0;
-    datos->indiceTxtEmisor = 0;
-    datos->indiceTxtReceptor = 0;
-
-    // datos->buffer = malloc(numeroEspacio * sizeof(int));
-    datos->buffer[0] = 'P';
-    datos->buffer[1] = 'I';
-    datos->buffer[2] = 'E';
-    datos->buffer[3] = 'S';
-    datos->buffer[4] = ' ';
-    datos->buffer[5] = 'P';
-    datos->buffer[6] = 'A';
-    datos->buffer[7] = 'T';
-    datos->buffer[8] = 'A';
-    datos->buffer[9] = 'S';
+    // malloc retorna un puntero al primer byte del bloque de mem
+    datos->buffer = (char *)malloc((numeroEspacio) * sizeof(char));
+    printf("Se asignaron %ld bytes para el buffer de caracteres.\n", (numeroEspacio) * sizeof(char));
+    strncpy(datos->buffer, "sipi", numeroEspacio - 1);
+    datos->buffer[numeroEspacio-1] = '\0';
+    printf("buffer: %s\n", datos->buffer);
+    printf("Dirección del buffer: %p \n", datos->buffer);
+    printf("len buffer: %ld \n", strlen(datos->buffer));
 
     printDatos(datos);
+    //free(datos->buffer);
+    shmdt(datos);
+    // sleep(25);
+
+    // if (shmdt(datos) == -1) {  // desasignar del segmento compartido
+    //     perror("Error eliminando asignacion del seg compartido");
+    //     return 1;
+    // }
+    // fclose(dataTxt);
     return 0;
 }
 
-void printDatos(struct datosCompartida* d) {
+void printDatos(struct datosCompartida *d)
+{
     printf("Clave: %d\n", d->clave);
     printf("Espacios del buffer: %d\n", d->numeroEspacio);
-    printf("contEmisoresTotal: %d\n", d->contEmisoresTotal);
-    printf("contReceptoresTotal: %d\n", d->contReceptoresTotal);
-    printf("contEmisoresVivos: %d\n", d->contEmisoresVivos);
-    printf("contReceptoresVivos: %d\n", d->contReceptoresVivos);
+    printf("indiceEmisor: %d\n", d->indiceEmisor);
+    printf("indiceReceptor: %d\n", d->indiceReceptor);
+    // printf("contEmisoresVivos: %d\n", d->contEmisoresVivos);
+    // printf("contReceptoresVivos: %d\n", d->contReceptoresVivos);
     printf("buffer: %s\n", d->buffer);
     return;
 }
