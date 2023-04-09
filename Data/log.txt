@@ -1,3 +1,10 @@
-PID-E/R    | Caracter    | Index    | Date    
-23345E     | H           |  0      |  dd:mm:ss 
-23347E     | o           |  1      |  dd:mm:ss 
+PID-E/R    | Caracter    | Index    | Date      | Active
+26839-E    | H           |  0       | dd:mm:ss  | 1
+26839-E    | H           |  0       | dd:mm:ss  | 1
+
+26839-E    | H           |  0       | dd:mm:ss  | 1
+
+26839-E    | H           |  0       | dd:mm:ss  | 1
+
+26839-E    | H           |  0       | dd:mm:ss  | 0
+

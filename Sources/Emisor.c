@@ -14,6 +14,7 @@
 
 void setupEmisor(char *Modo, char *ID, int clave);
 void printDatos(struct datosCompartida *d);
+char* getFechaHora();
 
 int main(int argc, char *argv[])
 {
@@ -124,9 +125,10 @@ void setupEmisor(char *Modo, char *ID, int clave)
     printf("Buffer : %s \n", datos->buffer);
     printf("Indice emisor : %d \n", datos->indiceEmisor);
     
-    
+    char* str = getFechaHora(); // call the function to get the string
+    printf("%s\n", str); // print the string
     // escribir la info en el log file, se escribe una linea al final del archivo
-    char infoFormato[] = "%d-%c    | %c           |  %d       |  %s \n";
+    char infoFormato[] = "%d-%c    | %c           |  %d       | %s \n";
     fprintf(logFile, infoFormato, getpid(),'E', charLeido, datos->indiceEmisor, "dd:mm:ss");
     
     //Buffer con R/W circular
@@ -171,6 +173,19 @@ void printDatos(struct datosCompartida *d)
     return;
 }
 
+char* getFechaHora(){
+    time_t tiempo_actual = time(NULL);
+    struct tm *tiempo_local = localtime(&tiempo_actual);
+    int year = tiempo_local->tm_year + 1900;
+    int mes = tiempo_local->tm_mon + 1;
+    int dia = tiempo_local->tm_mday;
+    int hora = tiempo_local->tm_hour;
+    int mins = tiempo_local->tm_min;
+    int secs = tiempo_local->tm_sec;
+    char* result = (char*)malloc(10*sizeof(int));
+    sprintf(result, "%04d/%02d/%02d : %d:%02d:%02d\n", year, mes, dia, hora, mins, secs);
+    return result;
+}
 
     // time_t tiempo_actual = time(NULL);                   // Obtenemos el tiempo actual en segundos
     // struct tm *tiempo_local = localtime(&tiempo_actual); // Convertimos el tiempo en una estructura tm
